@@ -4156,7 +4156,7 @@ function isAsyncThunkAction() {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getUnResolvedBugs = exports.default = exports.bugResolved = exports.bugAdded = void 0;
+exports.getBugsByUser = exports.getUnResolvedBugs = exports.default = exports.bugAssignedToUser = exports.bugResolved = exports.bugAdded = void 0;
 
 var _toolkit = require("@reduxjs/toolkit");
 
@@ -4167,6 +4167,15 @@ var slice = (0, _toolkit.createSlice)({
   name: "bugs",
   initialState: [],
   reducers: {
+    bugAssignedToUser: function bugAssignedToUser(bugs, action) {
+      var _action$payload = action.payload,
+          bugId = _action$payload.bugId,
+          userId = _action$payload.userId;
+      var index = bugs.findIndex(function (bug) {
+        return bug.id === bugId;
+      });
+      bugs[index].userId = userId;
+    },
     bugAdded: function bugAdded(bugs, action) {
       bugs.push({
         id: ++lastId,
@@ -4178,18 +4187,20 @@ var slice = (0, _toolkit.createSlice)({
       bugs.filter(function (bug) {
         return bug.id !== action.payload.id;
       });
+    },
+    bugResolved: function bugResolved(bugs, action) {
+      var index = bugs.findIndex(function (bug) {
+        return bug.id === action.payload.id;
+      });
+      bugs[index].resolve = true;
     }
-  },
-  bugResolved: function bugResolved(bugs, action) {
-    var index = bugs.findIndex(function (bug) {
-      return bug.id === action.payload.id;
-    });
-    bugs[index].resolve = true;
   }
 });
 var _slice$actions = slice.actions,
     bugAdded = _slice$actions.bugAdded,
-    bugResolved = _slice$actions.bugResolved;
+    bugResolved = _slice$actions.bugResolved,
+    bugAssignedToUser = _slice$actions.bugAssignedToUser;
+exports.bugAssignedToUser = bugAssignedToUser;
 exports.bugResolved = bugResolved;
 exports.bugAdded = bugAdded;
 var _default = slice.reducer;
@@ -4202,6 +4213,18 @@ var getUnResolvedBugs = (0, _reselect.createSelector)(function (state) {
   });
 });
 exports.getUnResolvedBugs = getUnResolvedBugs;
+
+var getBugsByUser = function getBugsByUser(userId) {
+  return (0, _reselect.createSelector)(function (state) {
+    return state.entities.bugs;
+  }, function (bugs) {
+    return bugs.filter(function (bug) {
+      return bug.userId === userId;
+    });
+  });
+};
+
+exports.getBugsByUser = getBugsByUser;
 },{"@reduxjs/toolkit":"node_modules/@reduxjs/toolkit/dist/redux-toolkit.esm.js","reselect":"node_modules/reselect/es/index.js"}],"src/store/project.js":[function(require,module,exports) {
 "use strict";
 
@@ -4230,6 +4253,33 @@ var projectAdded = slice.actions.projectAdded;
 exports.projectAdded = projectAdded;
 var _default = slice.reducer;
 exports.default = _default;
+},{"@reduxjs/toolkit":"node_modules/@reduxjs/toolkit/dist/redux-toolkit.esm.js"}],"src/store/users.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = exports.usersAdded = void 0;
+
+var _toolkit = require("@reduxjs/toolkit");
+
+var lastId = 0;
+var slice = (0, _toolkit.createSlice)({
+  name: "users",
+  initialState: [],
+  reducers: {
+    usersAdded: function usersAdded(users, action) {
+      users.push({
+        id: ++lastId,
+        name: action.payload.name
+      });
+    }
+  }
+});
+var usersAdded = slice.actions.usersAdded;
+exports.usersAdded = usersAdded;
+var _default = slice.reducer;
+exports.default = _default;
 },{"@reduxjs/toolkit":"node_modules/@reduxjs/toolkit/dist/redux-toolkit.esm.js"}],"src/store/entities.js":[function(require,module,exports) {
 "use strict";
 
@@ -4244,15 +4294,18 @@ var _bugs = _interopRequireDefault(require("./bugs"));
 
 var _project = _interopRequireDefault(require("./project"));
 
+var _users = _interopRequireDefault(require("./users"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var _default = (0, _redux.combineReducers)({
   bugs: _bugs.default,
-  projects: _project.default
+  projects: _project.default,
+  users: _users.default
 });
 
 exports.default = _default;
-},{"redux":"node_modules/redux/es/redux.js","./bugs":"src/store/bugs.js","./project":"src/store/project.js"}],"src/store/reducer.js":[function(require,module,exports) {
+},{"redux":"node_modules/redux/es/redux.js","./bugs":"src/store/bugs.js","./project":"src/store/project.js","./users":"src/store/users.js"}],"src/store/reducer.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -4300,6 +4353,8 @@ var _bugs = require("./store/bugs");
 
 var _project = require("./store/project");
 
+var _users = require("./store/users");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var store = (0, _configureStore.default)();
@@ -4315,8 +4370,24 @@ store.dispatch((0, _bugs.bugAdded)({
 store.dispatch((0, _project.projectAdded)({
   name: "project 1"
 }));
-var unresolvedBugs = (0, _bugs.getUnResolvedBugs)(store.getState());
-console.log(unresolvedBugs); // console.log(store.getState());
+store.dispatch((0, _project.projectAdded)({
+  name: "project 2"
+}));
+store.dispatch((0, _users.usersAdded)({
+  name: "user 1"
+}));
+store.dispatch((0, _users.usersAdded)({
+  name: "user 2"
+}));
+store.dispatch((0, _bugs.bugAssignedToUser)({
+  bugId: 1,
+  userId: 1
+}));
+store.dispatch((0, _bugs.bugResolved)({
+  id: 1
+}));
+var bugs = (0, _bugs.getBugsByUser)(1)(store.getState());
+console.log(bugs); // console.log(store.getState());
 // import { bugAdded, bugResolved } from "./action";
 // // const unsubscribe = store.subscribe(() => {
 // //   console.log("store changed!", store.getState());
@@ -4324,7 +4395,7 @@ console.log(unresolvedBugs); // console.log(store.getState());
 // store.dispatch(bugAdded("Bug 1"));
 // store.dispatch(bugResolved(1));
 // console.log(store.getState());
-},{"./store/configureStore":"src/store/configureStore.js","./store/bugs":"src/store/bugs.js","./store/project":"src/store/project.js"}],"C:/Users/Rahul/AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./store/configureStore":"src/store/configureStore.js","./store/bugs":"src/store/bugs.js","./store/project":"src/store/project.js","./store/users":"src/store/users.js"}],"C:/Users/Rahul/AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -4352,7 +4423,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "61414" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "52838" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
